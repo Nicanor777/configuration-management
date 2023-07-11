@@ -1,0 +1,74 @@
+---
+- name: Deploy YOLO Application
+  hosts: gcp_hosts
+  gather_facts: false
+  become: true
+  vars:
+    client_image: 0100ulquiorra/yolo-client:v1.0.0
+    backend_image: 0100ulquiorra/yolo-backend:v1.0.0
+    app_folder: /opt/yolo
+    tasks:
+    - name: Update the cache
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Clone the repository
+      git:
+        repo: https://github.com/Nicanor777/yolo.git
+        dest: /opt/yolo
+
+    - name: Install npm
+      apt:
+        name: npm
+        state: present
+
+    - name: Install Docker dependencies
+      apt:
+        name:
+          - "apt-transport-https"
+          - "ca-certificates"
+          - "curl"
+          - "software-properties-common"
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: Pull the client image
+      community.docker.docker_image:
+        name: "{{ client_image }}"
+        source: pull
+
+    - name: Pull the backend image
+      community.docker.docker_image:
+        name: "{{ backend_image }}"
+        source: pull
+
+    - name: Create app folder
+      file:
+        path: "{{ app_folder }}"
+        state: directory
+
+
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+
+    - name: Start Docker containers
+      command: docker-compose up -d
+      args:
+        chdir: /opt/yolo
